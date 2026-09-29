@@ -9,111 +9,188 @@ export default function App() {
 
   const generatePDF = async () => {
     if (!reportRef.current || isGenerating) {
-      console.log("⚠️ Bloqueado:", { hasRef: !!reportRef.current, isGenerating });
+      console.log("⚠️ Bloqueado:", {
+        hasRef: !!reportRef.current,
+        isGenerating,
+      });
       return;
     }
 
-    console.log("🚀 Iniciando geração do PDF...");
     setIsGenerating(true);
     setProgress(0);
 
     try {
-      const pages = reportRef.current.querySelectorAll<HTMLElement>(".page");
+      const pages = Array.from(
+        reportRef.current.querySelectorAll<HTMLElement>(".page")
+      );
+
       console.log(`📄 Encontradas ${pages.length} páginas`);
 
-      if (pages.length === 0) {
+      if (!pages.length) {
         throw new Error("Nenhuma página encontrada!");
       }
+
+      // Garante que fontes estejam carregadas
+      if (document.fonts?.ready) {
+        await document.fonts.ready;
+      }
+
+      // Garante que imagens estejam carregadas
+      const images = Array.from(
+        reportRef.current.querySelectorAll("img")
+      );
+
+      await Promise.all(
+        images.map((img) => {
+          if (img.complete) return Promise.resolve();
+
+          return new Promise<void>((resolve) => {
+            img.onload = () => resolve();
+            img.onerror = () => resolve();
+          });
+        })
+      );
+
+      // Pequeno tempo para o navegador terminar o layout
+      await new Promise((resolve) => setTimeout(resolve, 300));
 
       const pdf = new jsPDF({
         orientation: "portrait",
         unit: "mm",
         format: "a4",
+        compress: true,
       });
 
-      const pdfWidth = 210;
-      const pdfHeight = 297;
+      const PDF_WIDTH = 210;
+      const PDF_HEIGHT = 297;
 
       for (let i = 0; i < pages.length; i++) {
         const page = pages[i];
-        console.log(`📸 Capturando página ${i + 1}/${pages.length}...`);
 
-        // Scroll para garantir que a página está visível
-        page.scrollIntoView({ behavior: "smooth", block: "start" });
-        await new Promise(resolve => setTimeout(resolve, 300));
+        console.log(
+          `📸 Capturando página ${i + 1}/${pages.length}`,
+          {
+            width: page.offsetWidth,
+            height: page.offsetHeight,
+            scrollWidth: page.scrollWidth,
+            scrollHeight: page.scrollHeight,
+          }
+        );
 
-        // Capturar página com html2canvas
+        // IMPORTANTE:
+        // Nada de scrollIntoView com animação.
+        window.scrollTo({
+          top: 0,
+          left: 0,
+          behavior: "instant",
+        });
+
+        // Garante que o elemento esteja renderizado
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+
         const canvas = await html2canvas(page, {
           scale: 2,
           useCORS: true,
-          allowTaint: true,
+          allowTaint: false,
           backgroundColor: "#ffffff",
+
+          // Captura exatamente o elemento
+          width: page.offsetWidth,
+          height: page.offsetHeight,
+
+          // Não depende do tamanho da viewport
+          windowWidth: document.documentElement.scrollWidth,
+          windowHeight: document.documentElement.scrollHeight,
+
+          scrollX: 0,
+          scrollY: -window.scrollY,
+
           logging: false,
-          width: page.scrollWidth,
-          height: page.scrollHeight,
-          windowWidth: page.scrollWidth,
-          windowHeight: page.scrollHeight,
+
+          // Evita problemas com elementos animados
+          onclone: (clonedDocument) => {
+            const clonedPage =
+              clonedDocument.querySelectorAll(".page")[i] as HTMLElement;
+
+            if (clonedPage) {
+              clonedPage.style.animation = "none";
+              clonedPage.style.transition = "none";
+            }
+
+            clonedDocument
+              .querySelectorAll<HTMLElement>("*")
+              .forEach((element) => {
+                element.style.animation = "none";
+                element.style.transition = "none";
+              });
+          },
         });
 
-        console.log(`✅ Canvas criado: ${canvas.width}x${canvas.height}px`);
+        console.log(
+          `✅ Canvas página ${i + 1}: ${canvas.width}x${canvas.height}px`
+        );
 
-        // Converter para imagem
-        const imgData = canvas.toDataURL("image/jpeg", 0.95);
-
-        // Adicionar página ao PDF
         if (i > 0) {
-          pdf.addPage();
+          pdf.addPage("a4", "portrait");
         }
 
-        pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
-        
-        const progressValue = Math.round(((i + 1) / pages.length) * 100);
+        const imgData = canvas.toDataURL("image/jpeg", 0.95);
+
+        // Proporção real da página capturada
+        const canvasRatio = canvas.width / canvas.height;
+        const pdfRatio = PDF_WIDTH / PDF_HEIGHT;
+
+        let renderWidth = PDF_WIDTH;
+        let renderHeight = PDF_HEIGHT;
+        let offsetX = 0;
+        let offsetY = 0;
+
+        if (canvasRatio > pdfRatio) {
+          // Conteúdo mais largo
+          renderWidth = PDF_WIDTH;
+          renderHeight = PDF_WIDTH / canvasRatio;
+          offsetY = (PDF_HEIGHT - renderHeight) / 2;
+        } else {
+          // Conteúdo mais alto
+          renderHeight = PDF_HEIGHT;
+          renderWidth = PDF_HEIGHT * canvasRatio;
+          offsetX = (PDF_WIDTH - renderWidth) / 2;
+        }
+
+        pdf.addImage(
+          imgData,
+          "JPEG",
+          offsetX,
+          offsetY,
+          renderWidth,
+          renderHeight,
+          undefined,
+          "FAST"
+        );
+
+        const progressValue = Math.round(
+          ((i + 1) / pages.length) * 100
+        );
+
         setProgress(progressValue);
-        console.log(`📊 Progresso: ${progressValue}%`);
+
+        console.log(
+          `📊 Página ${i + 1}/${pages.length} adicionada ao PDF`
+        );
       }
 
-      console.log("💾 Salvando PDF...");
-      
-      // Método 1: Tentar com pdf.save() diretamente
-      try {
-        pdf.save("Relatorio-Aftermarket-MG-FrotaAI.pdf");
-        console.log("✅ PDF baixado com sucesso via pdf.save()!");
-      } catch (saveError) {
-        console.warn("⚠️ pdf.save() falhou, tentando método alternativo...", saveError);
-        
-        // Método 2: Fallback com blob e link
-        const pdfBlob = pdf.output("blob");
-        const url = URL.createObjectURL(pdfBlob);
-        
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = "Relatorio-Aftermarket-MG-FrotaAI.pdf";
-        link.style.display = "none";
-        document.body.appendChild(link);
-        
-        console.log("🔗 Link criado, clicando...");
-        
-        // Criar e disparar evento de clique
-        const clickEvent = new MouseEvent("click", {
-          view: window,
-          bubbles: true,
-          cancelable: false,
-        });
-        link.dispatchEvent(clickEvent);
-        
-        // Limpar
-        setTimeout(() => {
-          if (document.body.contains(link)) {
-            document.body.removeChild(link);
-          }
-          URL.revokeObjectURL(url);
-          console.log("✅ PDF baixado com sucesso via link!");
-        }, 100);
-      }
+      console.log("💾 Finalizando PDF...");
 
+      pdf.save("Relatorio-Aftermarket-MG-FrotaAI.pdf");
+
+      console.log("✅ PDF completo gerado!");
     } catch (error) {
       console.error("❌ Erro ao gerar PDF:", error);
-      alert("Erro ao gerar o PDF. Verifique o console para mais detalhes.");
+
+      alert(
+        "Erro ao gerar o PDF. Verifique o console para mais detalhes."
+      );
     } finally {
       setIsGenerating(false);
       setProgress(0);
