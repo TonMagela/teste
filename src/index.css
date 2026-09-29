@@ -1,1 +1,240 @@
 @import "tailwindcss";
+
+:root {
+  --primary: #0f172a;
+  --accent: #2a62ff;
+  --text: #334155;
+  --bg: #ffffff;
+  --light-bg: #f8fafc;
+  --border: #e2e8f0;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  color: var(--text);
+  line-height: 1.6;
+  background-color: #e2e8f0;
+}
+
+.page {
+  background: var(--bg);
+  width: 210mm;
+  min-height: 297mm;
+  margin: 20px auto;
+  padding: 20mm;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  position: relative;
+}
+
+/* Capa */
+.cover-page {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: left;
+  border-left: 12px solid var(--accent);
+  padding-left: 40px;
+}
+
+.cover-page .brand {
+  font-size: 14pt;
+  font-weight: 800;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  margin-bottom: 40px;
+}
+
+.cover-page h1 {
+  font-size: 38pt;
+  color: var(--primary);
+  line-height: 1.1;
+  margin-bottom: 20px;
+  font-weight: 900;
+}
+
+.cover-page h2 {
+  font-size: 16pt;
+  color: var(--text);
+  font-weight: 400;
+  margin-bottom: 60px;
+  max-width: 85%;
+}
+
+.cover-page .meta {
+  font-size: 12pt;
+  color: #64748b;
+  border-top: 2px solid var(--border);
+  padding-top: 20px;
+  margin-top: auto;
+}
+
+/* Conteúdo */
+h1.section-title {
+  font-size: 22pt;
+  color: var(--primary);
+  border-bottom: 3px solid var(--accent);
+  padding-bottom: 10px;
+  margin-bottom: 25px;
+  margin-top: 40px;
+}
+
+h2.subsection-title {
+  font-size: 15pt;
+  color: var(--primary);
+  margin-top: 30px;
+  margin-bottom: 15px;
+  font-weight: 700;
+}
+
+p {
+  margin-bottom: 16px;
+  text-align: justify;
+}
+
+ul.executive-summary {
+  list-style: none;
+  margin-bottom: 30px;
+}
+
+ul.executive-summary li {
+  position: relative;
+  padding-left: 25px;
+  margin-bottom: 12px;
+  font-size: 11pt;
+}
+
+ul.executive-summary li::before {
+  content: "▸";
+  color: var(--accent);
+  font-weight: bold;
+  position: absolute;
+  left: 0;
+  font-size: 14pt;
+  line-height: 1.4;
+}
+
+/* Tabelas */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 20px 0;
+  font-size: 10pt;
+}
+
+th {
+  background-color: var(--primary);
+  color: white;
+  text-align: left;
+  padding: 12px;
+  font-weight: 600;
+}
+
+td {
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+tr:nth-child(even) {
+  background-color: var(--light-bg);
+}
+
+/* Destaque */
+.highlight-box {
+  background-color: var(--light-bg);
+  border-left: 4px solid var(--accent);
+  padding: 20px;
+  margin: 20px 0;
+  border-radius: 0 8px 8px 0;
+}
+
+/* Página de Fechamento */
+.closing-page {
+  background-color: var(--primary);
+  color: white;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+}
+
+.closing-page h2 {
+  color: var(--accent);
+  font-size: 26pt;
+  margin-bottom: 30px;
+  font-weight: 800;
+}
+
+.closing-page .action-list {
+  list-style: none;
+  text-align: left;
+  display: inline-block;
+  margin: 0 auto 40px auto;
+  font-size: 13pt;
+}
+
+.closing-page .action-list li {
+  margin-bottom: 15px;
+  padding-left: 30px;
+  position: relative;
+}
+
+.closing-page .action-list li::before {
+  content: "✓";
+  color: var(--accent);
+  position: absolute;
+  left: 0;
+  font-weight: bold;
+}
+
+.closing-page p {
+  text-align: center;
+  color: #cbd5e1;
+  margin-bottom: 20px;
+  font-size: 12pt;
+}
+
+.closing-page .contact-info {
+  margin-top: 30px;
+  padding-top: 30px;
+  border-top: 1px solid #334155;
+}
+
+.closing-page .contact-info div {
+  color: white;
+  text-decoration: none;
+  display: block;
+  margin-bottom: 10px;
+  font-size: 13pt;
+  font-weight: 500;
+}
+
+.closing-page .final-tagline {
+  margin-top: 40px;
+  font-size: 16pt;
+  font-weight: bold;
+  color: var(--accent);
+}
+
+/* Impressão */
+@media print {
+  body {
+    background: none;
+  }
+  .page {
+    margin: 0;
+    box-shadow: none;
+    width: 100%;
+    min-height: 100vh;
+    page-break-after: always;
+  }
+  .page:last-child {
+    page-break-after: auto;
+  }
+}
