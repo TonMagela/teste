@@ -1,47 +1,258 @@
+import { useRef, useState } from "react";
+import html2canvas from "html2canvas";
+import { jsPDF } from "jspdf";
+
 export default function App() {
+  const reportRef = useRef<HTMLDivElement>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [progress, setProgress] = useState(0);
+
+  const generatePDF = async () => {
+    if (!reportRef.current || isGenerating) {
+      console.log("⚠️ Bloqueado:", { hasRef: !!reportRef.current, isGenerating });
+      return;
+    }
+
+    console.log("🚀 Iniciando geração do PDF...");
+    setIsGenerating(true);
+    setProgress(0);
+
+    try {
+      const pages = reportRef.current.querySelectorAll<HTMLElement>(".page");
+      console.log(`📄 Encontradas ${pages.length} páginas`);
+
+      if (pages.length === 0) {
+        throw new Error("Nenhuma página encontrada!");
+      }
+
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+      });
+
+      const pdfWidth = 210;
+      const pdfHeight = 297;
+
+      for (let i = 0; i < pages.length; i++) {
+        const page = pages[i];
+        console.log(`📸 Capturando página ${i + 1}/${pages.length}...`);
+
+        // Scroll para garantir que a página está visível
+        page.scrollIntoView({ behavior: "smooth", block: "start" });
+        await new Promise(resolve => setTimeout(resolve, 300));
+
+        // Capturar página com html2canvas
+        const canvas = await html2canvas(page, {
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: "#ffffff",
+          logging: false,
+          width: page.scrollWidth,
+          height: page.scrollHeight,
+          windowWidth: page.scrollWidth,
+          windowHeight: page.scrollHeight,
+        });
+
+        console.log(`✅ Canvas criado: ${canvas.width}x${canvas.height}px`);
+
+        // Converter para imagem
+        const imgData = canvas.toDataURL("image/jpeg", 0.95);
+
+        // Adicionar página ao PDF
+        if (i > 0) {
+          pdf.addPage();
+        }
+
+        pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
+        
+        const progressValue = Math.round(((i + 1) / pages.length) * 100);
+        setProgress(progressValue);
+        console.log(`📊 Progresso: ${progressValue}%`);
+      }
+
+      console.log("💾 Salvando PDF...");
+      
+      // Método 1: Tentar com pdf.save() diretamente
+      try {
+        pdf.save("Relatorio-Aftermarket-MG-FrotaAI.pdf");
+        console.log("✅ PDF baixado com sucesso via pdf.save()!");
+      } catch (saveError) {
+        console.warn("⚠️ pdf.save() falhou, tentando método alternativo...", saveError);
+        
+        // Método 2: Fallback com blob e link
+        const pdfBlob = pdf.output("blob");
+        const url = URL.createObjectURL(pdfBlob);
+        
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "Relatorio-Aftermarket-MG-FrotaAI.pdf";
+        link.style.display = "none";
+        document.body.appendChild(link);
+        
+        console.log("🔗 Link criado, clicando...");
+        
+        // Criar e disparar evento de clique
+        const clickEvent = new MouseEvent("click", {
+          view: window,
+          bubbles: true,
+          cancelable: false,
+        });
+        link.dispatchEvent(clickEvent);
+        
+        // Limpar
+        setTimeout(() => {
+          if (document.body.contains(link)) {
+            document.body.removeChild(link);
+          }
+          URL.revokeObjectURL(url);
+          console.log("✅ PDF baixado com sucesso via link!");
+        }, 100);
+      }
+
+    } catch (error) {
+      console.error("❌ Erro ao gerar PDF:", error);
+      alert("Erro ao gerar o PDF. Verifique o console para mais detalhes.");
+    } finally {
+      setIsGenerating(false);
+      setProgress(0);
+    }
+  };
+
   return (
     <>
-      {/* Botão simples de impressão */}
-      <button
-        onClick={() => {
-          console.log("Clicou no botão!");
-          window.print();
-        }}
+      {/* Botão de download com progresso */}
+      <div
         style={{
           position: "fixed",
           bottom: "30px",
           right: "30px",
           zIndex: 9999,
-          background: "#2a62ff",
-          color: "white",
-          border: "none",
-          padding: "20px 30px",
-          borderRadius: "50px",
-          fontSize: "16px",
-          fontWeight: "bold",
-          cursor: "pointer",
-          boxShadow: "0 8px 30px rgba(42, 98, 255, 0.4)",
           display: "flex",
-          alignItems: "center",
+          flexDirection: "column",
+          alignItems: "flex-end",
           gap: "10px",
         }}
       >
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+        {isGenerating && (
+          <div
+            style={{
+              background: "rgba(15, 23, 42, 0.95)",
+              color: "white",
+              padding: "12px 20px",
+              borderRadius: "12px",
+              fontSize: "13px",
+              fontWeight: 500,
+              boxShadow: "0 10px 40px rgba(0,0,0,0.3)",
+              backdropFilter: "blur(10px)",
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+            }}
+          >
+            <div
+              style={{
+                width: "120px",
+                height: "6px",
+                background: "rgba(255,255,255,0.15)",
+                borderRadius: "3px",
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  width: `${progress}%`,
+                  height: "100%",
+                  background: "linear-gradient(90deg, #2a62ff, #60a5fa)",
+                  borderRadius: "3px",
+                  transition: "width 0.3s ease",
+                }}
+              />
+            </div>
+            <span>Gerando... {progress}%</span>
+          </div>
+        )}
+        
+        <button
+          onClick={generatePDF}
+          disabled={isGenerating}
+          style={{
+            background: isGenerating
+              ? "#64748b"
+              : "linear-gradient(135deg, #2a62ff 0%, #1d4ed8 100%)",
+            color: "white",
+            border: "none",
+            padding: "20px 30px",
+            borderRadius: "50px",
+            fontSize: "16px",
+            fontWeight: "bold",
+            cursor: isGenerating ? "not-allowed" : "pointer",
+            boxShadow: "0 8px 30px rgba(42, 98, 255, 0.4)",
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
+            transition: "all 0.3s ease",
+          }}
+          onMouseEnter={(e) => {
+            if (!isGenerating) {
+              e.currentTarget.style.transform = "translateY(-2px)";
+              e.currentTarget.style.boxShadow = "0 12px 40px rgba(42, 98, 255, 0.5)";
+            }
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = "translateY(0)";
+            e.currentTarget.style.boxShadow = "0 8px 30px rgba(42, 98, 255, 0.4)";
+          }}
         >
-          <polyline points="6 9 6 2 18 2 18 9" />
-          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-          <rect x="6" y="14" width="12" height="8" />
-        </svg>
-        Salvar como PDF
-      </button>
+          {isGenerating ? (
+            <>
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{ animation: "spin 1s linear infinite" }}
+              >
+                <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+              </svg>
+              Gerando PDF...
+            </>
+          ) : (
+            <>
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              Baixar PDF Completo
+            </>
+          )}
+        </button>
+      </div>
+
+      <style>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
+
+      {/* Container do relatório */}
+      <div ref={reportRef}>
 
       {/* CAPA */}
       <div className="page cover-page">
@@ -784,6 +995,7 @@ export default function App() {
           Fale com o FrotaAI. O mercado acontece.
           <br />A gente ajuda você a enxergar.
         </div>
+      </div>
       </div>
     </>
   );
