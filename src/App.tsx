@@ -1,73 +1,8 @@
-import { useRef, useState } from "react";
-import html2canvas from "html2canvas";
-import { jsPDF } from "jspdf";
-
 export default function App() {
-  const reportRef = useRef<HTMLDivElement>(null);
-  const [generating, setGenerating] = useState(false);
-  const [progress, setProgress] = useState(0);
-
-  const handleDownloadPDF = async () => {
-    if (!reportRef.current || generating) return;
-    setGenerating(true);
-    setProgress(0);
-
-    try {
-      // Aguardar carregamento de imagens
-      const images = reportRef.current.querySelectorAll("img");
-      await Promise.all(
-        Array.from(images).map((img) => {
-          if (img.complete) return Promise.resolve();
-          return new Promise<void>((resolve) => {
-            img.onload = () => resolve();
-            img.onerror = () => resolve();
-          });
-        })
-      );
-
-      // Pequeno delay para garantir renderização
-      await new Promise((r) => setTimeout(r, 300));
-
-      const pages = reportRef.current.querySelectorAll<HTMLElement>(".page");
-      const pdf = new jsPDF({
-        orientation: "portrait",
-        unit: "mm",
-        format: "a4",
-      });
-
-      const pageWidth = 210;
-      const pageHeight = 297;
-
-      for (let i = 0; i < pages.length; i++) {
-        const page = pages[i];
-        const canvas = await html2canvas(page, {
-          scale: 2,
-          useCORS: true,
-          allowTaint: true,
-          backgroundColor: "#ffffff",
-          logging: false,
-          windowWidth: page.scrollWidth,
-          windowHeight: page.scrollHeight,
-        });
-
-        const imgData = canvas.toDataURL("image/jpeg", 0.95);
-
-        if (i > 0) {
-          pdf.addPage();
-        }
-
-        pdf.addImage(imgData, "JPEG", 0, 0, pageWidth, pageHeight);
-        setProgress(Math.round(((i + 1) / pages.length) * 100));
-      }
-
-      pdf.save("Relatorio-Aftermarket-MG-FrotaAI.pdf");
-    } catch (error) {
-      console.error("Erro ao gerar PDF:", error);
-      alert("Erro ao gerar o PDF. Tente novamente.");
-    } finally {
-      setGenerating(false);
-      setProgress(0);
-    }
+  const handleDownloadPDF = () => {
+    // Usar a API de impressão nativa do navegador
+    // O usuário pode escolher "Salvar como PDF" no diálogo de impressão
+    window.print();
   };
 
   return (
@@ -79,64 +14,19 @@ export default function App() {
           bottom: "30px",
           right: "30px",
           zIndex: 9999,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "flex-end",
-          gap: "10px",
         }}
       >
-        {generating && (
-          <div
-            style={{
-              background: "rgba(15, 23, 42, 0.95)",
-              color: "white",
-              padding: "12px 20px",
-              borderRadius: "12px",
-              fontSize: "13px",
-              fontWeight: 500,
-              boxShadow: "0 10px 40px rgba(0,0,0,0.3)",
-              backdropFilter: "blur(10px)",
-              display: "flex",
-              alignItems: "center",
-              gap: "12px",
-            }}
-          >
-            <div
-              style={{
-                width: "120px",
-                height: "6px",
-                background: "rgba(255,255,255,0.15)",
-                borderRadius: "3px",
-                overflow: "hidden",
-              }}
-            >
-              <div
-                style={{
-                  width: `${progress}%`,
-                  height: "100%",
-                  background: "linear-gradient(90deg, #2a62ff, #60a5fa)",
-                  borderRadius: "3px",
-                  transition: "width 0.3s ease",
-                }}
-              />
-            </div>
-            <span>Gerando PDF... {progress}%</span>
-          </div>
-        )}
         <button
           onClick={handleDownloadPDF}
-          disabled={generating}
           style={{
-            background: generating
-              ? "#64748b"
-              : "linear-gradient(135deg, #2a62ff 0%, #1d4ed8 100%)",
+            background: "linear-gradient(135deg, #2a62ff 0%, #1d4ed8 100%)",
             color: "white",
             border: "none",
             padding: "16px 24px",
             borderRadius: "50px",
             fontSize: "14px",
             fontWeight: 700,
-            cursor: generating ? "not-allowed" : "pointer",
+            cursor: "pointer",
             boxShadow: "0 8px 30px rgba(42, 98, 255, 0.4)",
             display: "flex",
             alignItems: "center",
@@ -145,11 +35,9 @@ export default function App() {
             letterSpacing: "0.5px",
           }}
           onMouseEnter={(e) => {
-            if (!generating) {
-              e.currentTarget.style.transform = "translateY(-2px)";
-              e.currentTarget.style.boxShadow =
-                "0 12px 40px rgba(42, 98, 255, 0.5)";
-            }
+            e.currentTarget.style.transform = "translateY(-2px)";
+            e.currentTarget.style.boxShadow =
+              "0 12px 40px rgba(42, 98, 255, 0.5)";
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.transform = "translateY(0)";
@@ -157,52 +45,25 @@ export default function App() {
               "0 8px 30px rgba(42, 98, 255, 0.4)";
           }}
         >
-          {generating ? (
-            <>
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                style={{ animation: "spin 1s linear infinite" }}
-              >
-                <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-              </svg>
-              Gerando...
-            </>
-          ) : (
-            <>
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="7 10 12 15 17 10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
-              Baixar PDF
-            </>
-          )}
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <polyline points="6 9 6 2 18 2 18 9" />
+            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+            <rect x="6" y="14" width="12" height="8" />
+          </svg>
+          Salvar PDF
         </button>
       </div>
-      <style>{`
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
 
-      <div ref={reportRef}>
+      <div>
       {/* CAPA */}
       <div className="page cover-page">
         <div className="brand">FrotaAI</div>

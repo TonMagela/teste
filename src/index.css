@@ -224,17 +224,43 @@ tr:nth-child(even) {
 
 /* Impressão */
 @media print {
-  body {
-    background: none;
-  }
-  .page {
+  @page {
+    size: A4;
     margin: 0;
-    box-shadow: none;
-    width: 100%;
-    min-height: 100vh;
-    page-break-after: always;
   }
+
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Esconder botão de download */
+  button {
+    display: none !important;
+  }
+
+  .page {
+    margin: 0 !important;
+    padding: 15mm !important;
+    box-shadow: none !important;
+    width: 210mm !important;
+    min-height: 297mm !important;
+    page-break-after: always;
+    page-break-inside: avoid;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
   .page:last-child {
     page-break-after: auto;
+  }
+
+  /* Garantir que cores de fundo e bordas sejam impressas */
+  th, .highlight-box, .closing-page {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 }
