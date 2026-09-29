@@ -24,6 +24,7 @@ export default function App() {
             <strong>Contato:</strong> contato@frotaai.com.br
           </p>
         </div>
+        <div className="accent-bar"></div>
       </div>
 
       {/* CONTEÚDO - PÁGINA 2 */}
